@@ -19,14 +19,14 @@ options=('!emptydirs')
 url="http://www.gnome.org"
 groups=('gnome')
 install=gnome-terminal-transparent.install
-source=(http://ftp.gnome.org/pub/gnome/sources/$_realname/${pkgver:0:4}/$_realname-$pkgver.tar.xz
-        'restore-transparency.patch')
+source=("http://ftp.gnome.org/pub/gnome/sources/$_realname/${pkgver:0:4}/$_realname-$pkgver.tar.xz"
+        "http://pkgs.fedoraproject.org/cgit/gnome-terminal.git/plain/0001-Restore-transparency-gnome-3-14.patch")
 sha256sums=(3680ffe52a834566f249ad85b44c32d521f34a7a6816e900942ae54a58e0413d
-	        26be51a762c7c4efbec81d63f5c4309c23caed84697a506093bba08055f74f9b)
+	        ae62bc139a40066d624cee13befd0a0a747fed5e3acfb98782ab7a31796f2510)
 
 prepare() {
   cd $_realname-$pkgver
-  patch -Np1 -i ../restore-transparency.patch
+  patch -Np1 -i ../"0001-Restore-transparency-gnome-3-14.patch"
 }
 
 build() {

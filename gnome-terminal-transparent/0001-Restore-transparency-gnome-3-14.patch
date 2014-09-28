@@ -1,7 +1,7 @@
-From 125b960a77d41e79d3229e9eb125d030e29208c6 Mon Sep 17 00:00:00 2001
+From 1cb63cd1c90cb5bfc8ed2e6d161a7b96c51d8a29 Mon Sep 17 00:00:00 2001
 From: Debarshi Ray <debarshir@gnome.org>
 Date: Mon, 12 May 2014 14:57:18 +0200
-Subject: [PATCH 1/3] Restore transparency
+Subject: [PATCH 1/2] Restore transparency
 
 The transparency settings were removed as a side effect of
 2bff4b63ed3ceef6055e35563e9b0b33ad57349d
@@ -10,21 +10,21 @@ This restores them and you will need a compositing window manager to
 use it. The background image setting, also known as faux transparency,
 was not restored.
 ---
- src/org.gnome.Terminal.gschema.xml |  9 ++++
- src/profile-editor.c               | 10 +++++
+ src/org.gnome.Terminal.gschema.xml | 10 +++++
+ src/profile-editor.c               | 11 +++++
  src/profile-preferences.ui         | 92 ++++++++++++++++++++++++++++++++++++++
  src/terminal-schemas.h             |  3 ++
- src/terminal-screen.c              | 23 +++++++++-
+ src/terminal-screen.c              | 22 ++++++++-
  src/terminal-window.c              |  7 +++
- 6 files changed, 143 insertions(+), 1 deletion(-)
+ 6 files changed, 144 insertions(+), 1 deletion(-)
 
 diff --git a/src/org.gnome.Terminal.gschema.xml b/src/org.gnome.Terminal.gschema.xml
-index 94eeae9..ab7e914 100644
+index c7d0edb..8910ddd 100644
 --- a/src/org.gnome.Terminal.gschema.xml
 +++ b/src/org.gnome.Terminal.gschema.xml
-@@ -326,6 +326,15 @@
-       <default>'current'</default>
-       <summary>Which encoding to use</summary>
+@@ -318,6 +318,16 @@
+       <default>'narrow'</default>
+       <summary>Whether ambiguous-width characters are narrow or wide when using UTF-8 encoding</summary>
      </key>
 +    <key name="use-transparent-background" type="b">
 +      <default>false</default>
@@ -32,6 +32,7 @@ index 94eeae9..ab7e914 100644
 +    </key>
 +    <key name="background-transparency-percent" type="i">
 +      <default>50</default>
++      <range min="0" max="100"/>
 +      <summary>Adjust the amount of transparency</summary>
 +      <description>A value between 0 and 100, where 0 is opaque and 100 is fully transparent.</description>
 +    </key>
@@ -39,12 +40,12 @@ index 94eeae9..ab7e914 100644
  
    <!-- Keybinding settings -->
 diff --git a/src/profile-editor.c b/src/profile-editor.c
-index 1b3e855..9ab66c8 100644
+index 8e5732d..dac5341 100644
 --- a/src/profile-editor.c
 +++ b/src/profile-editor.c
-@@ -1026,6 +1026,16 @@ terminal_profile_edit (GSettings  *profile,
-                    gtk_builder_get_object (builder, "rewrap-on-resize-checkbutton"),
-                    "active", G_SETTINGS_BIND_GET | G_SETTINGS_BIND_SET);
+@@ -1099,7 +1099,18 @@ terminal_profile_edit (GSettings  *profile,
+                    "active-id",
+                    G_SETTINGS_BIND_GET | G_SETTINGS_BIND_SET);
  
 +  g_settings_bind (profile, TERMINAL_PROFILE_USE_TRANSPARENT_BACKGROUND,
 +                   gtk_builder_get_object (builder, "use-transparent-background"),
@@ -56,11 +57,13 @@ index 1b3e855..9ab66c8 100644
 +                   gtk_builder_get_object (builder, "background-transparent-adjustment"),
 +                   "value", G_SETTINGS_BIND_GET | G_SETTINGS_BIND_SET);
 +
+   /* Finished! */
++
    terminal_util_bind_mnemonic_label_sensitivity (editor);
  
    terminal_util_dialog_focus_widget (editor, widget_name);
 diff --git a/src/profile-preferences.ui b/src/profile-preferences.ui
-index f648938..2b068f0 100644
+index de901ee..25a284e 100644
 --- a/src/profile-preferences.ui
 +++ b/src/profile-preferences.ui
 @@ -23,6 +23,11 @@
@@ -75,7 +78,7 @@ index f648938..2b068f0 100644
    <object class="GtkListStore" id="model1">
      <columns>
        <!-- column-name gchararray -->
-@@ -1228,6 +1233,93 @@
+@@ -1073,6 +1078,93 @@
                                  <property name="position">1</property>
                                </packing>
                              </child>
@@ -170,12 +173,12 @@ index f648938..2b068f0 100644
                          </child>
                        </object>
 diff --git a/src/terminal-schemas.h b/src/terminal-schemas.h
-index 443cf7b..c242857 100644
+index 90cc5a0..a3849eb 100644
 --- a/src/terminal-schemas.h
 +++ b/src/terminal-schemas.h
-@@ -65,6 +65,9 @@ G_BEGIN_DECLS
+@@ -63,6 +63,9 @@ G_BEGIN_DECLS
+ #define TERMINAL_PROFILE_USE_THEME_COLORS_KEY           "use-theme-colors"
  #define TERMINAL_PROFILE_VISIBLE_NAME_KEY               "visible-name"
- #define TERMINAL_PROFILE_WORD_CHARS_KEY                 "word-chars"
  
 +#define TERMINAL_PROFILE_USE_TRANSPARENT_BACKGROUND      "use-transparent-background"
 +#define TERMINAL_PROFILE_BACKGROUND_TRANSPARENCY_PERCENT "background-transparency-percent"
@@ -184,10 +187,10 @@ index 443cf7b..c242857 100644
  #define TERMINAL_SETTING_DEFAULT_SHOW_MENUBAR_KEY       "default-show-menubar"
  #define TERMINAL_SETTING_DARK_THEME_KEY                 "dark-theme"
 diff --git a/src/terminal-screen.c b/src/terminal-screen.c
-index ac971c0..43334b6 100644
+index ad78388..d09d812 100644
 --- a/src/terminal-screen.c
 +++ b/src/terminal-screen.c
-@@ -792,7 +792,9 @@ terminal_screen_profile_changed_cb (GSettings     *profile,
+@@ -750,7 +750,9 @@ terminal_screen_profile_changed_cb (GSettings     *profile,
        prop_name == I_(TERMINAL_PROFILE_BACKGROUND_COLOR_KEY) ||
        prop_name == I_(TERMINAL_PROFILE_BOLD_COLOR_SAME_AS_FG_KEY) ||
        prop_name == I_(TERMINAL_PROFILE_BOLD_COLOR_KEY) ||
@@ -198,20 +201,19 @@ index ac971c0..43334b6 100644
      update_color_scheme (screen);
  
    if (!prop_name || prop_name == I_(TERMINAL_PROFILE_AUDIBLE_BELL_KEY))
-@@ -857,6 +859,9 @@ update_color_scheme (TerminalScreen *screen)
+@@ -809,6 +811,8 @@ update_color_scheme (TerminalScreen *screen)
    GdkRGBA fg, bg, bold, theme_fg, theme_bg;
    GdkRGBA *boldp;
    GtkStyleContext *context;
 +  GtkWidget *toplevel;
 +  gboolean transparent;
-+  guint16 opacity;
  
    context = gtk_widget_get_style_context (widget);
    gtk_style_context_get_color (context, GTK_STATE_FLAG_NORMAL, &theme_fg);
-@@ -880,6 +885,22 @@ update_color_scheme (TerminalScreen *screen)
-   vte_terminal_set_colors_rgba (VTE_TERMINAL (screen), &fg, &bg,
-                                 colors, n_colors);
-   vte_terminal_set_color_bold_rgba (VTE_TERMINAL (screen), boldp);
+@@ -829,9 +833,25 @@ update_color_scheme (TerminalScreen *screen)
+     boldp = NULL;
+ 
+   colors = terminal_g_settings_get_rgba_palette (priv->profile, TERMINAL_PROFILE_PALETTE_KEY, &n_colors);
 +
 +  transparent = g_settings_get_boolean (profile, TERMINAL_PROFILE_USE_TRANSPARENT_BACKGROUND);
 +  if (transparent)
@@ -219,23 +221,26 @@ index ac971c0..43334b6 100644
 +      gint transparency_percent;
 +
 +      transparency_percent = g_settings_get_int (profile, TERMINAL_PROFILE_BACKGROUND_TRANSPARENCY_PERCENT);
-+      opacity = (guint16) (G_MAXUINT16 * (100 - transparency_percent) / 100.0);
++      bg.alpha = (100 - transparency_percent) / 100.0;
 +    }
 +  else
-+    opacity = G_MAXUINT16;
++    bg.alpha = 1.0;
 +
-+  vte_terminal_set_opacity (VTE_TERMINAL (screen), opacity);
+   vte_terminal_set_colors (VTE_TERMINAL (screen), &fg, &bg,
+                            colors, n_colors);
+   vte_terminal_set_color_bold (VTE_TERMINAL (screen), boldp);
++
 +  toplevel = gtk_widget_get_toplevel (GTK_WIDGET (screen));
 +  if (toplevel != NULL && gtk_widget_is_toplevel (toplevel))
 +    gtk_widget_set_app_paintable (toplevel, transparent);
  }
  
- void
+ static void
 diff --git a/src/terminal-window.c b/src/terminal-window.c
-index db06b3f..2adcba8 100644
+index ce85744..98acab4 100644
 --- a/src/terminal-window.c
 +++ b/src/terminal-window.c
-@@ -2619,6 +2619,8 @@ terminal_window_init (TerminalWindow *window)
+@@ -2549,6 +2549,8 @@ terminal_window_init (TerminalWindow *window)
    TerminalWindowPrivate *priv;
    TerminalApp *app;
    TerminalSettingsList *profiles_list;
@@ -244,7 +249,7 @@ index db06b3f..2adcba8 100644
    GtkActionGroup *action_group;
    GtkAction *action;
    GtkUIManager *manager;
-@@ -2634,6 +2636,11 @@ terminal_window_init (TerminalWindow *window)
+@@ -2564,6 +2566,11 @@ terminal_window_init (TerminalWindow *window)
  
    gtk_widget_init_template (GTK_WIDGET (window));
  
@@ -260,36 +265,10 @@ index db06b3f..2adcba8 100644
 1.9.3
 
 
-From 170455bce81e0c537cd110a6f0fbe22237f26de4 Mon Sep 17 00:00:00 2001
-From: Debarshi Ray <debarshir@gnome.org>
-Date: Thu, 15 May 2014 11:57:31 +0200
-Subject: [PATCH 2/3] schemas: Specify the range for
- background-transparency-percent
-
----
- src/org.gnome.Terminal.gschema.xml | 1 +
- 1 file changed, 1 insertion(+)
-
-diff --git a/src/org.gnome.Terminal.gschema.xml b/src/org.gnome.Terminal.gschema.xml
-index ab7e914..53118ce 100644
---- a/src/org.gnome.Terminal.gschema.xml
-+++ b/src/org.gnome.Terminal.gschema.xml
-@@ -332,6 +332,7 @@
-     </key>
-     <key name="background-transparency-percent" type="i">
-       <default>50</default>
-+      <range min="0" max="100"/>
-       <summary>Adjust the amount of transparency</summary>
-       <description>A value between 0 and 100, where 0 is opaque and 100 is fully transparent.</description>
-     </key>
--- 
-1.9.3
-
-
-From 8691cf7d1a0e4c8705de7c389a1a95df2e1d617a Mon Sep 17 00:00:00 2001
+From df5793813d19dccfb6dfa75c1be766df562adb48 Mon Sep 17 00:00:00 2001
 From: Lars Uebernickel <lars.uebernickel@canonical.com>
 Date: Wed, 28 May 2014 14:11:02 +0200
-Subject: [PATCH 3/3] window: Make the drawing robust across all themes
+Subject: [PATCH 2/2] window: Make the drawing robust across all themes
 
 There are lots of themes out there in the wild that do not specify a
 background-color for all widgets and the default is transparent. This
@@ -306,10 +285,10 @@ https://bugzilla.gnome.org/show_bug.cgi?id=730016
  1 file changed, 21 insertions(+)
 
 diff --git a/src/terminal-window.c b/src/terminal-window.c
-index 2adcba8..35de19a 100644
+index 98acab4..b838424 100644
 --- a/src/terminal-window.c
 +++ b/src/terminal-window.c
-@@ -2271,6 +2271,26 @@ terminal_window_realize (GtkWidget *widget)
+@@ -2189,6 +2189,26 @@ terminal_window_realize (GtkWidget *widget)
  }
  
  static gboolean
@@ -336,7 +315,7 @@ index 2adcba8..35de19a 100644
  terminal_window_state_event (GtkWidget            *widget,
                               GdkEventWindowState  *event)
  {
-@@ -2806,6 +2826,7 @@ terminal_window_class_init (TerminalWindowClass *klass)
+@@ -2748,6 +2768,7 @@ terminal_window_class_init (TerminalWindowClass *klass)
  
    widget_class->show = terminal_window_show;
    widget_class->realize = terminal_window_realize;
