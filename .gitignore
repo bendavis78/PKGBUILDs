@@ -4,3 +4,4 @@ src/
 *.tar.xz.sig
 *.tar.gz
 *.zip
+.AURINFO
