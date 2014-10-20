@@ -1,0 +1,121 @@
+# Maintainer: Sergio Tridente <tioduke at gmail dot com >
+
+pkgname=qemu-user-static
+pkgver=2.1
+debpkgrel=+dfsg-5+b1
+pkgrel=1
+pkgdesc="A generic and open source processor emulator which achieves a good emulation speed by using dynamic translation, statically linked."
+arch=('i686' 'x86_64')
+license=('GPL2' 'LGPL2.1')
+url="http://wiki.qemu.org/Index.html"
+depends=()
+optdepends=('binfmt-support: to allow handling foreign ELF binaries and executing them via qemu')
+conflicts=()
+_arch=i386
+[ "$CARCH" == 'x86_64' ] && _arch=amd64
+_debsrc=${pkgname}_${pkgver}${debpkgrel}_${_arch}.deb
+source=(http://ftp.debian.org/debian/pool/main/q/qemu/${_debsrc})
+echo "source=${source}"
+sha1sums=('bf5427060d8fe8ee0e658eb2b98093e0118c1eb4')
+[ "$CARCH" = 'i686' ] && sha1sums=('b9d74a745e09fa7188a9c27e710ced87f5888224')
+
+prepare() {
+  cd "$srcdir"
+  ar p ${_debsrc} data.tar.xz | bsdtar xf -
+}
+
+package() {
+  cd "$pkgdir"
+  mkdir -p "$pkgdir"/usr/bin/
+  mkdir -p "$pkgdir"/usr/share/man/
+  mkdir -p "$pkgdir"/var/lib/binfmts/
+
+  cp "$srcdir"/usr/bin/* "$pkgdir"/usr/bin/
+  cp "$srcdir"/usr/share/man/man1 "$pkgdir"/usr/share/man/ -r
+
+  create_binfmts
+}
+
+create_binfmts() {
+    fmts="aarch64 alpha arm armeb cris i386 m68k microblaze mips mipsel ppc ppc64 ppc64abi32 ppc64le s390x sh4 sh4eb sparc sparc32plus sparc64 x86_64"
+    aarch64_magic='x7fELFx02x01x01x00x00x00x00x00x00x00x00x00x02x00xb7'
+    aarch64_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxfexffxff'
+    alpha_magic='x7fELFx02x01x01x00x00x00x00x00x00x00x00x00x02x00x26x90'
+    alpha_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxfexffxffxff'
+    arm_magic='x7fELFx01x01x01x00x00x00x00x00x00x00x00x00x02x00x28x00'
+    arm_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxfexffxffxff'
+    armeb_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02x00x28'
+    armeb_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxffxfexffxff'
+    cris_magic='x7fELFx01x01x01x00x00x00x00x00x00x00x00x00x02x00x4cx00'
+    cris_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxfexffxffxff'
+    i386_magic='x7fELFx01x01x01x00x00x00x00x00x00x00x00x00x02x00x03x00'
+    i386_mask='xffxffxffxffxffxfexfexffxffxffxffxffxffxffxffxffxfexffxffxff'
+    m68k_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02x00x04'
+    m68k_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxffxfexffxff'
+    microblaze_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02xbaxab'
+    microblaze_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxffxfexffxff'
+    mips_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02x00x08'
+    mips_mask='xffxffxffxffxffxffxffx00xfexffxffxffxffxffxffxffxffxfexffxff'
+    mipsel_magic='x7fELFx01x01x01x00x00x00x00x00x00x00x00x00x02x00x08x00'
+    mipsel_mask='xffxffxffxffxffxffxffx00xfexffxffxffxffxffxffxffxfexffxffxff'
+    ppc_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02x00x14'
+    ppc_mask='xffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxfexffxff'
+    ppc64_magic='x7fELFx02x02x01x00x00x00x00x00x00x00x00x00x00x02x00x15'
+    ppc64_mask='xffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxfexffxff'
+    ppc64abi32_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02x00x15'
+    ppc64abi32_mask='xffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxfexffxff'
+    s390x_magic='x7fELFx02x02x01x00x00x00x00x00x00x00x00x00x00x02x00x16'
+    s390x_mask='xffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxfexffxff'
+    sh4_magic='x7fELFx01x01x01x00x00x00x00x00x00x00x00x00x02x00x2ax00'
+    sh4_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxfexffxffxff'
+    sh4eb_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02x00x2a'
+    sh4eb_mask='xffxffxffxffxffxffxffx00xffxffxffxffxffxffxffxffxffxfexffxff'
+    sparc_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02x00x02'
+    sparc_mask='xffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxfexffxff'
+    sparc32plus_magic='x7fELFx01x02x01x00x00x00x00x00x00x00x00x00x00x02x00x12'
+    sparc32plus_mask='xffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxfexffxff'
+    sparc64_magic='x7fELFx02x02x01x00x00x00x00x00x00x00x00x00x00x02x00x2b'
+    sparc64_mask='xffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxfexffxff'
+    x86_64_magic='x7fELFx02x01x01x00x00x00x00x00x00x00x00x00x02x00x3ex00'
+    x86_64_mask='xffxffxffxffxffxfexfexffxffxffxffxffxffxffxffxffxfexffxffxff'
+    ppc64le_magic='x7fELFx02x01x01x00x00x00x00x00x00x00x00x00x02x00x15x00'
+    ppc64le_mask='xffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxffxfexffxffx00'
+
+    # find which fmts needs to be filtered out, which is arch-dependent.
+    # Drop support for emulating amd64 on i386, http://bugs.debian.org/604712
+    case "$arch" in
+      amd64 | i386) omit="i386|x86_64" ;;
+      arm | armel | armhf | arm64) omit="arm|aarch64" ;;
+      mips | mipsel) omit="$arch" ;;
+      ppc64 | powerpc | ppc64el) omit="ppc|ppc64|ppc64abi32|ppc64le" ;;
+      s390x) omit="s390x" ;;
+      sparc | sparc64) omit="sparc|sparc32plus|sparc64" ;;
+      *) omit="$arch" ;;
+    esac
+
+    for fmt in $fmts; do
+        case $fmt in 
+            $omit)
+                continue
+                ;;
+            *) 
+                magicvar=${fmt}_magic
+                maskvar=${fmt}_mask
+                magic=${!magicvar}
+                mask=${!maskvar}
+                ;; 
+        esac
+
+        binfmt=(
+            "qemu-user-static"
+            "magic"
+            "0"
+            "${magic//x/\\x}"
+            "${mask//x/\\x}"
+            "/usr/bin/qemu-${fmt}-static"
+            ""
+            "yes"
+        )
+        printf '%s\n' "${binfmt[@]}" > $pkgdir/var/lib/binfmts/qemu-${fmt}
+    done
+}
